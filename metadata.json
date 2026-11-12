@@ -1,0 +1,6 @@
+{
+  "name": "Sepedi Voice Drama Studio",
+  "description": "Interactive Sepedi voice drama generator with multi-character tone options, ambient sound effects, offline storage, and mobile export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
