@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -16,6 +17,10 @@ const ai = new GoogleGenAI({
     },
   },
 });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseServer = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // API endpoint to generate a Sepedi voice drama
 app.post("/api/generate-drama", async (req, res) => {
@@ -108,9 +113,17 @@ function textoutputClean(text: string): string {
 // API endpoint for realistic Text-to-Speech (TTS) using Gemini TTS models
 app.post("/api/synthesize-line", async (req, res) => {
   try {
-    const { text, style, voiceName } = req.body;
+    const { text, style, voiceName, emotionalIntensity } = req.body;
     if (!text) {
       return res.status(400).json({ error: "Text is required" });
+    }
+
+    let intensityDesc = "moderate emotional expression";
+    if (emotionalIntensity !== undefined) {
+      const val = parseInt(emotionalIntensity, 10);
+      if (val >= 4) intensityDesc = "very high emotional intensity, deeply passionate, dramatic, and emphatic performance";
+      else if (val === 3) intensityDesc = "balanced emotional expression, engaging and natural storytelling tone";
+      else intensityDesc = "calm, understated, and gentle tone";
     }
 
     const response = await ai.models.generateContent({
@@ -122,7 +135,7 @@ app.post("/api/synthesize-line", async (req, res) => {
             {
               text: text,
               speechMetadata: {
-                style: style || "Dramatic, emotive voice actor narrating African traditional folklore in Sepedi with natural cadence",
+                style: `${style || "Expressive voice acting"}, with ${intensityDesc}`,
               },
             },
           ],
@@ -147,6 +160,36 @@ app.post("/api/synthesize-line", async (req, res) => {
   } catch (err: any) {
     console.error("TTS generation error:", err);
     return res.status(500).json({ error: err.message || "Failed to synthesize speech" });
+  }
+});
+
+// Supabase drama persistence endpoints
+app.get("/api/dramas", async (req, res) => {
+  if (!supabaseServer) {
+    return res.json({ success: true, dramas: [], source: "local" });
+  }
+  try {
+    const { data, error } = await supabaseServer.from("dramas").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return res.json({ success: true, dramas: data || [], source: "supabase" });
+  } catch (err: any) {
+    console.error("Supabase fetch error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/dramas", async (req, res) => {
+  if (!supabaseServer) {
+    return res.json({ success: true, message: "Supabase not configured, saved locally" });
+  }
+  try {
+    const drama = req.body;
+    const { data, error } = await supabaseServer.from("dramas").upsert([drama]).select();
+    if (error) throw error;
+    return res.json({ success: true, drama: data?.[0], source: "supabase" });
+  } catch (err: any) {
+    console.error("Supabase save error:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 

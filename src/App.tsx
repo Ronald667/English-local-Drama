@@ -41,7 +41,7 @@ interface Character {
   pitch: string;
   description: string;
   geminiVoice?: string;
-  emotionalStyle?: string;
+  emotionalIntensity?: number; // 1 to 5
 }
 
 interface DialogueLine {
@@ -175,9 +175,9 @@ export default function App() {
         english: "Community and mutual support enrich our lives."
       },
       characters: [
-        { name: "Bra Themba", role: "Veteran Taxi Driver", voiceGender: "male", pitch: "low", description: "Wise, warm-hearted taxi rank veteran with endless local wisdom", geminiVoice: "Fenrir" },
-        { name: "Lerato", role: "Young Entrepreneur", voiceGender: "female", pitch: "medium", description: "Determined young designer heading to her first big pitch", geminiVoice: "Kore" },
-        { name: "Narrator", role: "Storyteller", voiceGender: "male", pitch: "medium", description: "Smooth, cinematic voice guiding the listener", geminiVoice: "Zephyr" }
+        { name: "Bra Themba", role: "Veteran Taxi Driver", voiceGender: "male", pitch: "low", description: "Wise, warm-hearted taxi rank veteran with endless local wisdom", geminiVoice: "Fenrir", emotionalIntensity: 4 },
+        { name: "Lerato", role: "Young Entrepreneur", voiceGender: "female", pitch: "medium", description: "Determined young designer heading to her first big pitch", geminiVoice: "Kore", emotionalIntensity: 3 },
+        { name: "Narrator", role: "Storyteller", voiceGender: "male", pitch: "medium", description: "Smooth, cinematic voice guiding the listener", geminiVoice: "Zephyr", emotionalIntensity: 3 }
       ],
       dialogues: [
         { id: "1", speaker: "Narrator", sepediText: "Early morning in downtown Johannesburg, the sun crests over Ponte City as commuters stream into the taxi rank.", englishTranslation: "Scene setting", soundEffect: "[Township street chatter and cars hooting]" },
@@ -220,7 +220,8 @@ export default function App() {
       const voices = ["Kore", "Puck", "Fenrir", "Charon", "Zephyr"];
       const enhancedCharacters = (data.drama.characters || []).map((c: any, idx: number) => ({
         ...c,
-        geminiVoice: voices[idx % voices.length]
+        geminiVoice: voices[idx % voices.length],
+        emotionalIntensity: 3
       }));
 
       const newDrama: DramaScript = {
@@ -377,6 +378,7 @@ export default function App() {
     const line = currentDrama.dialogues[index];
     const char = currentDrama.characters.find(c => c.name === line.speaker);
     const voiceName = char?.geminiVoice || "Kore";
+    const emotionalIntensity = char?.emotionalIntensity !== undefined ? char.emotionalIntensity : 3;
 
     let base64Wav = audioCache[line.id];
 
@@ -390,7 +392,8 @@ export default function App() {
             text: line.sepediText,
             speaker: line.speaker,
             style: `Expressive South African Local English voice acting for character ${line.speaker} (${char?.role || 'Actor'}), warm, engaging and natural cadence`,
-            voiceName
+            voiceName,
+            emotionalIntensity
           })
         });
 
@@ -497,6 +500,15 @@ export default function App() {
     setAudioCache({});
   };
 
+  const updateCharacterIntensity = (charName: string, intensity: number) => {
+    if (!currentDrama) return;
+    const updatedChars = currentDrama.characters.map(c => 
+      c.name === charName ? { ...c, emotionalIntensity: intensity } : c
+    );
+    setCurrentDrama({ ...currentDrama, characters: updatedChars });
+    setAudioCache({});
+  };
+
   const downloadScriptJson = () => {
     if (!currentDrama) return;
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentDrama, null, 2));
@@ -517,7 +529,7 @@ export default function App() {
     txt += `LOCAL SAYING / PROVERB:\n- ${currentDrama.proverb.sepedi} (${currentDrama.proverb.english})\n\n`;
     txt += `CHARACTERS:\n`;
     currentDrama.characters.forEach(c => {
-      txt += `- ${c.name} (${c.role}) [Voice: ${c.geminiVoice || 'Kore'}]: ${c.description}\n`;
+      txt += `- ${c.name} (${c.role}) [Voice: ${c.geminiVoice || 'Kore'}, Intensity: ${c.emotionalIntensity || 3}/5]: ${c.description}\n`;
     });
     txt += `\n--- DIALOGUE SCRIPT ---\n\n`;
     currentDrama.dialogues.forEach(d => {
@@ -798,7 +810,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
             {/* Left: Script Viewer & Dialogue Highlights */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="bg-stone-900/70 border border-stone-800 rounded-3xl p-6 lg:p-8 shadow-xl flex flex-col h-[750px]">
+              <div className="bg-stone-900/70 border border-stone-800 rounded-3xl p-6 lg:p-8 shadow-xl flex flex-col h-[780px]">
                 {/* Drama Header */}
                 <div className="border-b border-stone-800 pb-5 mb-5">
                   <div className="flex items-start justify-between gap-4">
@@ -838,14 +850,14 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Character Voice Customization */}
+                {/* Character Voice Customization & Emotional Intensity */}
                 <div className="mb-4 p-4 rounded-2xl bg-stone-950/80 border border-stone-800 space-y-3">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-amber-500" /> Character Neural Voice Assigner
+                    <UserCheck className="w-4 h-4 text-amber-500" /> Character Neural Voice & Emotional Intensity
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {currentDrama.characters.map((c, idx) => (
-                      <div key={idx} className="bg-stone-900 p-2.5 rounded-xl border border-stone-800 flex flex-col gap-1.5">
+                      <div key={idx} className="bg-stone-900 p-3 rounded-xl border border-stone-800 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-stone-200">{c.name}</span>
                           <span className="text-[10px] text-stone-500">{c.role}</span>
@@ -853,12 +865,36 @@ export default function App() {
                         <select
                           value={c.geminiVoice || "Kore"}
                           onChange={(e) => updateCharacterVoice(c.name, e.target.value)}
-                          className="bg-stone-950 border border-stone-800 rounded-lg p-1.5 text-xs text-amber-300 focus:outline-none focus:border-amber-600"
+                          className="bg-stone-950 border border-stone-800 rounded-lg p-2 text-xs text-amber-300 focus:outline-none focus:border-amber-600"
                         >
                           {GEMINI_VOICES.map(v => (
                             <option key={v.id} value={v.id}>{v.label}</option>
                           ))}
                         </select>
+
+                        {/* Emotional Intensity Range Slider */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex justify-between text-[11px] text-stone-400">
+                            <span>Emotional Intensity</span>
+                            <span className="font-mono text-amber-400">
+                              {c.emotionalIntensity || 3}/5 ({
+                                (c.emotionalIntensity || 3) === 1 ? "Calm" :
+                                (c.emotionalIntensity || 3) === 2 ? "Gentle" :
+                                (c.emotionalIntensity || 3) === 3 ? "Balanced" :
+                                (c.emotionalIntensity || 3) === 4 ? "Expressive" : "Intense & Dramatic"
+                              })
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={c.emotionalIntensity || 3}
+                            onChange={(e) => updateCharacterIntensity(c.name, parseInt(e.target.value, 10))}
+                            className="w-full accent-amber-600 bg-stone-950 cursor-pointer"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1163,7 +1199,7 @@ export default function App() {
                 <h3 className="font-semibold text-amber-400 pt-2">Key Highlights:</h3>
                 <ul className="list-disc pl-5 space-y-2 text-stone-300 text-xs">
                   <li><strong>Local English Storytelling:</strong> Generates gripping scripts tailored to South African culture, idiom, and warmth.</li>
-                  <li><strong>Gemini Neural TTS:</strong> Professional-grade voice acting across multiple character personas.</li>
+                  <li><strong>Gemini Neural TTS & Emotional Intensity:</strong> Adjust character emotional intensity sliders (1-5) to dynamically tailor voice performance.</li>
                   <li><strong>Offline Playback & Export:</strong> Save dramas to your browser library and export scripts instantly.</li>
                 </ul>
               </div>
